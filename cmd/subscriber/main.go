@@ -33,7 +33,7 @@ func (m *SubscribeMessage) newQuoteRequestByFix44(quoteReqID, symbol, account st
 	// order.Set(field.NewQuoteType(enum.QuoteType_RESTRICTED_TRADEABLE))
 	// order.Set(field.NewOrdType(enum.OrdType_FOREX_MARKET))
 	// FIXME
-	order.Set(field.NewOrderQty(decimal.New(100, 0), 2))
+	order.Set(field.NewOrderQty(decimal.New(0, 0), 0))
 	// group := fix44qr.NewNoRelatedSymRepeatingGroup()
 	// order.SetNoRelatedSym(group)
 	order.Set(field.NewNoRelatedSym(1))
