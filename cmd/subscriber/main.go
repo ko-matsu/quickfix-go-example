@@ -115,6 +115,12 @@ func (e Subscriber) FromAdmin(msg *quickfix.Message, sessionID quickfix.SessionI
 
 //ToAdmin implemented as part of Application interface
 func (e Subscriber) ToAdmin(msg *quickfix.Message, sessionID quickfix.SessionID) {
+	msgType, err := msg.MsgType()
+	if e.isDebug == false {
+		// do nothing
+	} else if msgType != "0" {
+		fmt.Printf("Send: %s\n", msg)
+	}
 }
 
 //ToApp implemented as part of Application interface
