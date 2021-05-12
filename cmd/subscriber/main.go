@@ -116,7 +116,9 @@ func (e Subscriber) FromAdmin(msg *quickfix.Message, sessionID quickfix.SessionI
 //ToAdmin implemented as part of Application interface
 func (e Subscriber) ToAdmin(msg *quickfix.Message, sessionID quickfix.SessionID) {
 	msgType, err := msg.MsgType()
-	if e.isDebug == false {
+	if err != nil {
+		fmt.Printf("Receive Invalid adminMsg: %s\n", msg.String())
+	} else if e.isDebug == false {
 		// do nothing
 	} else if msgType != "0" {
 		fmt.Printf("Send: %s\n", msg)
