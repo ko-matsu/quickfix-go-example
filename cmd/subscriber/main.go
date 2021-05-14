@@ -12,6 +12,7 @@ import (
 	"github.com/cryptogarageinc/quickfix-go/field"
 	fix44quote "github.com/cryptogarageinc/quickfix-go/fix44/quote"
 	fix44qr "github.com/cryptogarageinc/quickfix-go/fix44/quoterequest"
+	"github.com/cryptogarageinc/quickfix-go/tag"
 	"github.com/shopspring/decimal"
 )
 
@@ -27,16 +28,17 @@ func (m *SubscribeMessage) SetSession(sessionID quickfix.SessionID) {
 // newQuoteRequestByFix44 This function create QuoteRequest message.
 func (m *SubscribeMessage) newQuoteRequestByFix44(quoteReqID, symbol, account string) *quickfix.Message {
 	order := fix44qr.New(field.NewQuoteReqID(quoteReqID))
+	// order.Set(field.NewAccount(account))
 	order.Set(field.NewSymbol(symbol))
 	// order.Set(field.NewQuoteRequestType(enum.QuoteRequestType_AUTOMATIC))
 	// order.Set(field.NewQuoteType(enum.QuoteType_RESTRICTED_TRADEABLE))
 	// order.Set(field.NewOrdType(enum.OrdType_FOREX_MARKET))
 	// FIXME
 	order.Set(field.NewOrderQty(decimal.New(0, 0), 0))
-	// group := fix44qr.NewNoRelatedSymRepeatingGroup()
-	// order.SetNoRelatedSym(group)
-	order.Set(field.NewNoRelatedSym(1))
-	order.Set(field.NewAccount(account))
+	group := fix44qr.NewNoRelatedSymRepeatingGroup()
+	group.Add().Group.FieldMap.SetString(tag.Account, account)
+	order.SetNoRelatedSym(group)
+	// order.Set(field.NewNoRelatedSym(1))
 
 	order.Header.SetTargetCompID(m.sessionID.TargetCompID)
 	order.Header.SetSenderCompID(m.sessionID.SenderCompID)
