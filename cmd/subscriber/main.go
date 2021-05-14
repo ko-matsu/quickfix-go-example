@@ -105,6 +105,8 @@ func (e Subscriber) FromAdmin(msg *quickfix.Message, sessionID quickfix.SessionI
 		fmt.Printf("Recv Logon: %s\n", msg.String())
 	} else if msgType == "5" {
 		fmt.Printf("Recv Logout: %s\n", msg.String())
+	} else if msgType == "3" {
+		fmt.Printf("Recv Reject: %s\n", msg.String())
 	} else if msgType != "0" {
 		fmt.Printf("Recv: %s\n", msg.String())
 	} else if e.isDebug {
