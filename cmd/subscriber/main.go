@@ -127,6 +127,10 @@ func (e Subscriber) ToAdmin(msg *quickfix.Message, sessionID quickfix.SessionID)
 		fmt.Printf("Receive Invalid adminMsg: %s\n", msg.String())
 	} else if e.isDebug == false {
 		// do nothing
+	} else if msgType == "A" {
+		fmt.Printf("Send Logon: %s\n", msg)
+	} else if msgType == "5" {
+		fmt.Printf("Send Logout: %s\n", msg)
 	} else if msgType != "0" {
 		fmt.Printf("Send: %s\n", msg)
 	}
