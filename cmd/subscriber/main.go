@@ -138,7 +138,8 @@ func (obj *PriceLogger) WriteQuoteMessage(quote *fix44quote.Quote) error {
 	}
 	timeData, err := quote.GetTransactTime()
 	if err != nil {
-		return err
+		// if field is not found, use receive time.
+		timeData = time.Now().UTC()
 	}
 	timeString := timeData.Format("2006-01-02 15:04:05.000000")
 	qty, err := quote.GetBidSize()
