@@ -146,11 +146,11 @@ func (obj *PriceLogger) WriteQuoteMessage(quote *fix44quote.Quote) error {
 	if err != nil {
 		return err
 	}
-	bid, err := quote.GetBidPx() // buy
+	bid, err := quote.GetBidPx() // sell
 	if err != nil {
 		return err
 	}
-	offer, err := quote.GetOfferPx() // ask, sell
+	offer, err := quote.GetOfferPx() // ask
 	if err != nil {
 		return err
 	}
@@ -158,7 +158,7 @@ func (obj *PriceLogger) WriteQuoteMessage(quote *fix44quote.Quote) error {
 	floatBid, _ := bid.Float64()
 	floatOffer, _ := offer.Float64()
 
-	logStr := fmt.Sprintf("%d,%s,%s,%g,%f,%f\n", count, timeString, obj.Exchange, floatQty, floatOffer, floatBid)
+	logStr := fmt.Sprintf("%d,%s,%s,%g,%f,%f\n", count, timeString, obj.Exchange, floatQty, floatBid, floatOffer)
 	_, osError := obj.Handle.WriteString(logStr)
 	return osError
 }
