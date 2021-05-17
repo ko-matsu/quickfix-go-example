@@ -76,9 +76,9 @@ func NewPriceLogger(settings *quickfix.Settings) *PriceLogger {
 	}
 	filename, err := globalSetting.Setting("LoggingFileName")
 	if err != nil || len(filename) == 0 {
-		filename = "price_{asset}_{time}.log"
-	} else if strings.Contains(filename, ".log") == false {
-		filename = filename + ".log"
+		filename = "price_{asset}_{time}.csv"
+	} else if strings.Contains(filename, ".csv") == false {
+		filename = filename + ".csv"
 	}
 	assetName := strings.Replace(asset, "/", "_", -1)
 	timeString := time.Now().UTC().Format("20060102150405")
