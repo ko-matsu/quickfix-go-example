@@ -136,7 +136,11 @@ func (obj *PriceLogger) WriteQuoteMessage(quote *fix44quote.Quote) error {
 	} else {
 		obj.Count = obj.Count + 1
 	}
-	timeString := time.Now().UTC().Format("2006-01-02 15:04:05.000000")
+	timeData, err := quote.GetTransactTime()
+	if err != nil {
+		return err
+	}
+	timeString := timeData.Format("2006-01-02 15:04:05.000000")
 	qty, err := quote.GetBidSize()
 	if err != nil {
 		return err
