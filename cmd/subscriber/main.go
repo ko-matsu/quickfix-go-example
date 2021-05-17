@@ -7,6 +7,8 @@ import (
 	"os"
 	"path"
 	"strconv"
+	"strings"
+	"time"
 
 	quickfix "github.com/cryptogarageinc/quickfix-go"
 	"github.com/cryptogarageinc/quickfix-go/field"
@@ -48,6 +50,108 @@ func (m *SubscribeMessage) newQuoteRequestByFix44(quoteReqID, symbol, account st
 	return order.ToMessage()
 }
 
+type PriceLogger struct {
+	Enable   bool
+	FileName string
+	Asset    string
+	Exchange string
+	Handle   *os.File
+	Count    uint64
+}
+
+// NewPriceLogger This function create PriceLogger.
+func NewPriceLogger(settings *quickfix.Settings) *PriceLogger {
+	globalSetting := settings.GlobalSettings()
+	enable, err := globalSetting.BoolSetting("LoggingPrice")
+	if err != nil {
+		enable = false
+	}
+	asset, err := globalSetting.Setting("LoggingAsset")
+	if err != nil {
+		asset = "BTC/JPY"
+	}
+	exchange, err := globalSetting.Setting("LoggingExchangeName")
+	if err != nil {
+		exchange = ""
+	}
+	filename, err := globalSetting.Setting("LoggingFileName")
+	if err != nil || len(filename) == 0 {
+		filename = "price_{asset}_{time}.log"
+	} else if strings.Contains(filename, ".log") == false {
+		filename = filename + ".log"
+	}
+	assetName := strings.Replace(asset, "/", "_", -1)
+	timeString := time.Now().UTC().Format("20060102150405")
+	filename = strings.Replace(filename, "{asset}", assetName, -1)
+	filename = strings.Replace(filename, "{time}", timeString, -1)
+	return &PriceLogger{
+		Enable:   enable,
+		FileName: filename,
+		Asset:    asset,
+		Exchange: exchange,
+	}
+}
+
+// Open This function open logging file.
+func (obj *PriceLogger) Open() error {
+	if obj.Enable == false {
+		return nil
+	}
+	file, err := os.OpenFile(obj.FileName, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0666)
+	if err != nil {
+		return err
+	}
+
+	_, err = file.WriteString(",time,exchange,qty,sellprice,buyprice\n")
+	if err != nil {
+		file.Close()
+		return err
+	}
+	obj.Handle = file
+	return nil
+}
+
+// Open This function close logging file.
+func (obj *PriceLogger) Close() error {
+	if obj.Handle == nil {
+		return nil
+	}
+	return obj.Handle.Close()
+}
+
+// WriteQuote This function write quote message.
+func (obj *PriceLogger) WriteQuoteMessage(quote *fix44quote.Quote) error {
+	if obj.Handle == nil {
+		return nil
+	}
+	count := obj.Count
+	if count == uint64(0xffffffffffffffff) {
+		obj.Count = 0
+	} else {
+		obj.Count = obj.Count + 1
+	}
+	timeString := time.Now().UTC().Format("2006-01-02 15:04:05.000000")
+	qty, err := quote.GetBidSize()
+	if err != nil {
+		return err
+	}
+	bid, err := quote.GetBidPx() // buy
+	if err != nil {
+		return err
+	}
+	offer, err := quote.GetOfferPx() // ask, sell
+	if err != nil {
+		return err
+	}
+	floatQty, _ := qty.Float64()
+	floatBid, _ := bid.Float64()
+	floatOffer, _ := offer.Float64()
+
+	logStr := fmt.Sprintf("%d,%s,%s,%g,%g,%g\n", count, timeString, obj.Exchange, floatQty, floatOffer, floatBid)
+	_, osError := obj.Handle.WriteString(logStr)
+	return osError
+}
+
 type QuoteRequestData struct {
 	QuoteReqID, Symbol, Account string
 	Index                       int
@@ -84,6 +188,7 @@ func GetQuoteRequestDatas(settings *quickfix.Settings) []QuoteRequestData {
 type Subscriber struct {
 	data    *SubscribeMessage
 	isDebug bool
+	logger  *PriceLogger
 }
 
 //OnCreate implemented as part of Application interface
@@ -150,6 +255,10 @@ func (e Subscriber) FromApp(msg *quickfix.Message, sessionID quickfix.SessionID)
 	} else if msgType == "S" {
 		quoteData := fix44quote.FromMessage(msg)
 		fmt.Printf("Quote: %s, size=%d\n", msg.String(), quoteData.Body.Len())
+		tmpErr := e.logger.WriteQuoteMessage(&quoteData)
+		if tmpErr != nil {
+			fmt.Printf("Logging error: %s\n", tmpErr)
+		}
 	} else if msgType == "j" {
 		fmt.Printf("BusinessMessageReject: %s\n", msg.String())
 	} else {
@@ -195,7 +304,8 @@ func main() {
 	}
 
 	appData := SubscribeMessage{setting: appSettings}
-	app := Subscriber{data: &appData, isDebug: isDebug}
+	logger := NewPriceLogger(appSettings)
+	app := Subscriber{data: &appData, isDebug: isDebug, logger: logger}
 	fileLogFactory, err := quickfix.NewFileLogFactory(appSettings)
 
 	if err != nil {
@@ -208,6 +318,13 @@ func main() {
 		fmt.Printf("Unable to create Initiator: %s\n", err)
 		return
 	}
+
+	err = logger.Open()
+	if err != nil {
+		fmt.Printf("Error opening log file: %s\n", err)
+		return
+	}
+	defer logger.Close()
 
 	err = initiator.Start()
 	if err != nil {
