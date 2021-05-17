@@ -124,6 +124,12 @@ func (obj *PriceLogger) WriteQuoteMessage(quote *fix44quote.Quote) error {
 	if obj.Handle == nil {
 		return nil
 	}
+	asset, err := quote.GetSymbol()
+	if err != nil {
+		return err
+	} else if obj.Asset != asset {
+		return nil
+	}
 	count := obj.Count
 	if count == uint64(0xffffffffffffffff) {
 		obj.Count = 0
