@@ -153,7 +153,7 @@ func (obj *PriceLogger) WriteQuoteMessage(quote *fix44quote.Quote) error {
 	floatBid, _ := bid.Float64()
 	floatOffer, _ := offer.Float64()
 
-	logStr := fmt.Sprintf("%d,%s,%s,%g,%g,%g\n", count, timeString, obj.Exchange, floatQty, floatOffer, floatBid)
+	logStr := fmt.Sprintf("%d,%s,%s,%g,%f,%f\n", count, timeString, obj.Exchange, floatQty, floatOffer, floatBid)
 	_, osError := obj.Handle.WriteString(logStr)
 	return osError
 }
