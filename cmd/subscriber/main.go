@@ -21,6 +21,7 @@ import (
 type SubscribeMessage struct {
 	setting   *quickfix.Settings
 	sessionID quickfix.SessionID
+	initiator *quickfix.Initiator
 }
 
 func (m *SubscribeMessage) SetSession(sessionID quickfix.SessionID) {
@@ -77,7 +78,7 @@ func NewPriceLogger(settings *quickfix.Settings) *PriceLogger {
 	filename, err := globalSetting.Setting("LoggingFileName")
 	if err != nil || len(filename) == 0 {
 		filename = "price_{asset}_{time}.csv"
-	} else if strings.Contains(filename, ".csv") == false {
+	} else if !strings.Contains(filename, ".csv") {
 		filename = filename + ".csv"
 	}
 	assetName := strings.Replace(asset, "/", "_", -1)
@@ -94,7 +95,7 @@ func NewPriceLogger(settings *quickfix.Settings) *PriceLogger {
 
 // Open This function open logging file.
 func (obj *PriceLogger) Open() error {
-	if obj.Enable == false {
+	if !obj.Enable {
 		return nil
 	}
 	file, err := os.OpenFile(obj.FileName, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0666)
@@ -241,7 +242,7 @@ func (e Subscriber) ToAdmin(msg *quickfix.Message, sessionID quickfix.SessionID)
 	msgType, err := msg.MsgType()
 	if err != nil {
 		fmt.Printf("Receive Invalid adminMsg: %s\n", msg.String())
-	} else if e.isDebug == false {
+	} else if !e.isDebug {
 		// do nothing
 	} else if msgType == "A" {
 		fmt.Printf("Send Logon: %s\n", msg)
@@ -287,7 +288,7 @@ func (e Subscriber) queryQuoteRequestOrder(quoteReqID, symbol, account string) (
 	}()
 
 	order := e.data.newQuoteRequestByFix44(quoteReqID, symbol, account)
-	return quickfix.Send(order)
+	return e.data.initiator.SendToLiveSession(order, e.data.sessionID)
 }
 
 func main() {
@@ -318,7 +319,6 @@ func main() {
 	logger := NewPriceLogger(appSettings)
 	app := Subscriber{data: &appData, isDebug: isDebug, logger: logger}
 	fileLogFactory, err := quickfix.NewFileLogFactory(appSettings)
-
 	if err != nil {
 		fmt.Println("Error creating file log factory,", err)
 		return
@@ -337,6 +337,7 @@ func main() {
 	}
 	defer logger.Close()
 
+	app.data.initiator = initiator
 	err = initiator.Start()
 	if err != nil {
 		fmt.Printf("Failed to Start: %s\n", err)

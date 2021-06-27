@@ -23,14 +23,25 @@ import (
 	"strconv"
 )
 
+type acceptorObject struct {
+	*quickfix.Acceptor
+	*quickfix.Settings
+	BeginString  string
+	SenderCompID string
+}
+
 type publisher struct {
 	orderID int
 	execID  int
 	*quickfix.MessageRouter
+	*acceptorObject
 }
 
 func newPublisher() *publisher {
-	p := &publisher{MessageRouter: quickfix.NewMessageRouter()}
+	p := &publisher{
+		MessageRouter:  quickfix.NewMessageRouter(),
+		acceptorObject: &acceptorObject{},
+	}
 	p.AddRoute(fix44nos.Route(p.OnFIX44NewOrderSingle))
 	p.AddRoute(fix44qr.Route(p.OnFIX44NewQuoteRequest))
 	return p
@@ -47,12 +58,37 @@ func (e *publisher) genExecID() field.ExecIDField {
 }
 
 //quickfix.Application interface
-func (e publisher) OnCreate(sessionID quickfix.SessionID)                           {}
-func (e publisher) OnLogon(sessionID quickfix.SessionID)                            {}
-func (e publisher) OnLogout(sessionID quickfix.SessionID)                           {}
+func (e publisher) OnCreate(sessionID quickfix.SessionID) {
+	fmt.Printf("OnCreate: %s\n", sessionID.String())
+}
+
+func (e publisher) OnLogon(sessionID quickfix.SessionID) {
+	fmt.Printf("OnLogon: %s\n", sessionID.String())
+}
+
+func (e publisher) OnLogout(sessionID quickfix.SessionID) {
+	fmt.Printf("OnLogout: %s\n", sessionID.String())
+}
+
 func (e publisher) ToAdmin(msg *quickfix.Message, sessionID quickfix.SessionID)     {}
 func (e publisher) ToApp(msg *quickfix.Message, sessionID quickfix.SessionID) error { return nil }
+
 func (e publisher) FromAdmin(msg *quickfix.Message, sessionID quickfix.SessionID) quickfix.MessageRejectError {
+	msgType, err := msg.MsgType()
+	if err != nil {
+		fmt.Printf("Receive Invalid adminMsg: %s\n", msg.String())
+	} else if msgType == "A" {
+		// if sessionID.TargetCompID !=
+		fmt.Printf("Recv Logon: %s\n", msg.String())
+	} else if msgType == "5" {
+		fmt.Printf("Recv Logout: %s\n", msg.String())
+	} else if msgType == "3" {
+		fmt.Printf("Recv Reject: %s\n", msg.String())
+	} else if msgType != "0" {
+		fmt.Printf("Recv: %s\n", msg.String())
+	} else {
+		fmt.Println("Recv heartbeat.")
+	}
 	return nil
 }
 
@@ -121,8 +157,10 @@ func (e *publisher) OnFIX44NewOrderSingle(msg fix44nos.NewOrderSingle, sessionID
 		execReport.SetAccount(acct)
 	}
 
-	quickfix.SendToTarget(execReport, sessionID)
-
+	tempErr := e.acceptorObject.Acceptor.SendToLiveSession(execReport, sessionID)
+	if tempErr != nil {
+		fmt.Println("Error SendToLiveSession,", tempErr)
+	}
 	return
 }
 
@@ -154,7 +192,58 @@ func (e *publisher) OnFIX44NewQuoteRequest(msg fix44qr.QuoteRequest, sessionID q
 		quote.SetAccount(account)
 	}
 
-	quickfix.SendToTarget(quote, sessionID)
+	tempErr := e.acceptorObject.Acceptor.SendToLiveSession(quote, sessionID)
+	if tempErr != nil {
+		fmt.Println("Error SendToLiveSession,", tempErr)
+	}
+	return
+}
+
+func (e *publisher) OnFIX44NewQuoteAll() (err quickfix.MessageRejectError) {
+	acceptor := e.acceptorObject.Acceptor
+	list := acceptor.GetLoggedOnSessionIdList()
+	for _, sessionId := range list {
+
+		quote := fix44quote.New(field.NewQuoteID("TEST"))
+		quote.SetQuoteReqID("test")
+		quote.SetCurrency("BTC")
+		quote.SetTransactTime(time.Now())
+		quote.SetSymbol("symbol")
+		quote.SetBidPx(decimal.New(120, 0), 2)
+		quote.SetOfferPx(decimal.New(100, 0), 2)
+		quote.SetBidSize(decimal.New(120, 0), 2)
+		quote.SetOfferSize(decimal.New(100, 0), 2)
+
+		quote.SetBeginString(e.acceptorObject.BeginString)
+		quote.SetSenderCompID(e.acceptorObject.SenderCompID)
+		quote.SetTargetCompID(sessionId.TargetCompID)
+
+		tempErr := acceptor.SendToLiveSession(quote, sessionId)
+		if tempErr != nil {
+			fmt.Println("Error SendToLiveSession,", tempErr)
+		}
+	}
+	return
+}
+
+func (e *publisher) OnFIX44NewQuoteAll2() (err quickfix.MessageRejectError) {
+	acceptor := e.acceptorObject.Acceptor
+	quote := fix44quote.New(field.NewQuoteID("TEST2"))
+	quote.SetQuoteReqID("test2")
+	quote.SetCurrency("BTC")
+	quote.SetTransactTime(time.Now())
+	quote.SetSymbol("symbol2")
+	quote.SetBidPx(decimal.New(120, 0), 2)
+	quote.SetOfferPx(decimal.New(100, 0), 2)
+	quote.SetBidSize(decimal.New(120, 0), 2)
+	quote.SetOfferSize(decimal.New(100, 0), 2)
+	errorList, tempErr := acceptor.SendToLiveSessions(quote)
+	if tempErr != nil {
+		fmt.Println("Error SendToLiveSessions,", tempErr)
+		for key, value := range *errorList {
+			fmt.Printf(" - session: %s, err: %v\n", key.String(), value)
+		}
+	}
 	return
 }
 
@@ -174,28 +263,58 @@ func main() {
 
 	appSettings, err := quickfix.ParseSettings(cfg)
 	if err != nil {
+		//if err.Error() == "no sessions declared" {
 		fmt.Println("Error reading cfg,", err)
 		return
 	}
 
 	logFactory := quickfix.NewScreenLogFactory()
+	// TODO(k-matsuzawa): file logger is not supported dynamic session.
+	// logFactory, err := quickfix.NewFileLogFactory(appSettings)
+	// if err != nil {
+	// 	fmt.Println("Error creating file log factory,", err)
+	// 	return
+	// }
+
 	app := newPublisher()
+	app.acceptorObject.Settings = appSettings
+	app.acceptorObject.BeginString, err = appSettings.GlobalSettings().Setting("BeginString")
+	if err != nil {
+		fmt.Println("Error BeginString cfg,", err)
+		return
+	}
+	app.acceptorObject.SenderCompID, err = appSettings.GlobalSettings().Setting("SenderCompID")
+	if err != nil {
+		fmt.Println("Error SenderCompID cfg,", err)
+		return
+	}
 
 	acceptor, err := quickfix.NewAcceptor(app, quickfix.NewMemoryStoreFactory(), appSettings, logFactory)
 	if err != nil {
 		fmt.Printf("Unable to create Acceptor: %s\n", err)
 		return
 	}
+	app.acceptorObject.Acceptor = acceptor
 
-	err = acceptor.Start()
-	if err != nil {
+	if err = acceptor.Start(); err != nil {
 		fmt.Printf("Unable to start Acceptor: %s\n", err)
 		return
 	}
+	fmt.Println("Acceptor start.")
+
+	go func() {
+		for app.acceptorObject.Acceptor != nil {
+			time.Sleep(20 * time.Second)
+			app.OnFIX44NewQuoteAll()
+			// app.OnFIX44NewQuoteAll2()
+		}
+	}()
 
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, os.Interrupt, syscall.SIGTERM) // os.Kill
 	<-interrupt
 
+	app.acceptorObject.Acceptor = nil
 	acceptor.Stop()
+	fmt.Println("Acceptor stop.")
 }
