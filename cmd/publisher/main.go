@@ -157,9 +157,9 @@ func (e *publisher) OnFIX44NewOrderSingle(msg fix44nos.NewOrderSingle, sessionID
 		execReport.SetAccount(acct)
 	}
 
-	tempErr := e.acceptorObject.Acceptor.SendToLiveSession(execReport, sessionID)
+	tempErr := e.acceptorObject.Acceptor.SendToAliveSession(execReport, sessionID)
 	if tempErr != nil {
-		fmt.Println("Error SendToLiveSession,", tempErr)
+		fmt.Println("Error SendToAliveSession,", tempErr)
 	}
 	return
 }
@@ -192,16 +192,16 @@ func (e *publisher) OnFIX44NewQuoteRequest(msg fix44qr.QuoteRequest, sessionID q
 		quote.SetAccount(account)
 	}
 
-	tempErr := e.acceptorObject.Acceptor.SendToLiveSession(quote, sessionID)
+	tempErr := e.acceptorObject.Acceptor.SendToAliveSession(quote, sessionID)
 	if tempErr != nil {
-		fmt.Println("Error SendToLiveSession,", tempErr)
+		fmt.Println("Error SendToAliveSession,", tempErr)
 	}
 	return
 }
 
 func (e *publisher) OnFIX44NewQuoteAll() (err quickfix.MessageRejectError) {
 	acceptor := e.acceptorObject.Acceptor
-	list := acceptor.GetLoggedOnSessionIdList()
+	list := acceptor.GetAliveSessionIDs()
 	for _, sessionId := range list {
 
 		quote := fix44quote.New(field.NewQuoteID("TEST"))
@@ -218,16 +218,16 @@ func (e *publisher) OnFIX44NewQuoteAll() (err quickfix.MessageRejectError) {
 		quote.SetSenderCompID(e.acceptorObject.SenderCompID)
 		quote.SetTargetCompID(sessionId.TargetCompID)
 
-		tempErr := acceptor.SendToLiveSession(quote, sessionId)
+		tempErr := acceptor.SendToAliveSession(quote, sessionId)
 		if tempErr != nil {
-			fmt.Println("Error SendToLiveSession,", tempErr)
+			fmt.Println("Error SendToAliveSession,", tempErr)
 		}
 	}
 	return
 }
 
 func (e *publisher) OnFIX44NewQuoteAll2() (err quickfix.MessageRejectError) {
-	acceptor := e.acceptorObject.Acceptor
+	// acceptor := e.acceptorObject.Acceptor
 	quote := fix44quote.New(field.NewQuoteID("TEST2"))
 	quote.SetQuoteReqID("test2")
 	quote.SetCurrency("BTC")
@@ -237,11 +237,38 @@ func (e *publisher) OnFIX44NewQuoteAll2() (err quickfix.MessageRejectError) {
 	quote.SetOfferPx(decimal.New(100, 0), 2)
 	quote.SetBidSize(decimal.New(120, 0), 2)
 	quote.SetOfferSize(decimal.New(100, 0), 2)
-	errorList, tempErr := acceptor.SendToLiveSessions(quote)
+	tempErr := quickfix.SendToAliveSessions(quote)
 	if tempErr != nil {
-		fmt.Println("Error SendToLiveSessions,", tempErr)
-		for key, value := range *errorList {
+		fmt.Println("Error SendToAliveSessions,", tempErr.Error())
+		errMap := tempErr.(*quickfix.ErrorBySessionID)
+		for key, value := range errMap.ErrorMap {
 			fmt.Printf(" - session: %s, err: %v\n", key.String(), value)
+		}
+	}
+	return
+}
+
+func (e *publisher) OnFIX44NewQuoteAll3() (err quickfix.MessageRejectError) {
+	list := quickfix.GetAliveSessionIDs()
+	for _, sessionId := range list {
+
+		quote := fix44quote.New(field.NewQuoteID("TEST"))
+		quote.SetQuoteReqID("test")
+		quote.SetCurrency("BTC")
+		quote.SetTransactTime(time.Now())
+		quote.SetSymbol("symbol")
+		quote.SetBidPx(decimal.New(120, 0), 2)
+		quote.SetOfferPx(decimal.New(100, 0), 2)
+		quote.SetBidSize(decimal.New(120, 0), 2)
+		quote.SetOfferSize(decimal.New(100, 0), 2)
+
+		quote.SetBeginString(e.acceptorObject.BeginString)
+		quote.SetSenderCompID(e.acceptorObject.SenderCompID)
+		quote.SetTargetCompID(sessionId.TargetCompID)
+
+		tempErr := quickfix.SendToAliveSession(quote, sessionId)
+		if tempErr != nil {
+			fmt.Println("Error SendToAliveSession,", tempErr)
 		}
 	}
 	return
@@ -303,10 +330,12 @@ func main() {
 	fmt.Println("Acceptor start.")
 
 	go func() {
+		time.Sleep(5 * time.Second)
 		for app.acceptorObject.Acceptor != nil {
+			// app.OnFIX44NewQuoteAll()
+			app.OnFIX44NewQuoteAll2()
+			// app.OnFIX44NewQuoteAll3()
 			time.Sleep(20 * time.Second)
-			app.OnFIX44NewQuoteAll()
-			// app.OnFIX44NewQuoteAll2()
 		}
 	}()
 

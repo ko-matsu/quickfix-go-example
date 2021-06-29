@@ -288,7 +288,7 @@ func (e Subscriber) queryQuoteRequestOrder(quoteReqID, symbol, account string) (
 	}()
 
 	order := e.data.newQuoteRequestByFix44(quoteReqID, symbol, account)
-	return e.data.initiator.SendToLiveSession(order, e.data.sessionID)
+	return e.data.initiator.SendToAliveSession(order, e.data.sessionID)
 }
 
 func main() {
