@@ -215,12 +215,36 @@ func (e *publisher) OnFIX44NewQuoteAll() (err quickfix.MessageRejectError) {
 		quote.SetOfferSize(decimal.New(100, 0), 2)
 
 		quote.SetBeginString(e.acceptorObject.BeginString)
-		quote.SetSenderCompID(e.acceptorObject.SenderCompID)
+		quote.SetSenderCompID(sessionId.SenderCompID)
 		quote.SetTargetCompID(sessionId.TargetCompID)
 
 		tempErr := acceptor.SendToAliveSession(quote, sessionId)
 		if tempErr != nil {
 			fmt.Println("Error SendToAliveSession,", tempErr)
+		}
+	}
+	return
+}
+
+func (e *publisher) OnFIX44NewQuoteAll1() (err quickfix.MessageRejectError) {
+	acceptor := e.acceptorObject.Acceptor
+
+	quote := fix44quote.New(field.NewQuoteID("TEST"))
+	quote.SetQuoteReqID("test")
+	quote.SetCurrency("BTC")
+	quote.SetTransactTime(time.Now())
+	quote.SetSymbol("symbol")
+	quote.SetBidPx(decimal.New(120, 0), 2)
+	quote.SetOfferPx(decimal.New(100, 0), 2)
+	quote.SetBidSize(decimal.New(120, 0), 2)
+	quote.SetOfferSize(decimal.New(100, 0), 2)
+
+	tempErr := acceptor.SendToAliveSessions(quote)
+	if tempErr != nil {
+		fmt.Println("Error SendToAliveSessions,", tempErr.Error())
+		errMap := tempErr.(*quickfix.ErrorBySessionID)
+		for key, value := range errMap.ErrorMap {
+			fmt.Printf(" - session: %s, err: %v\n", key.String(), value)
 		}
 	}
 	return
@@ -263,7 +287,7 @@ func (e *publisher) OnFIX44NewQuoteAll3() (err quickfix.MessageRejectError) {
 		quote.SetOfferSize(decimal.New(100, 0), 2)
 
 		quote.SetBeginString(e.acceptorObject.BeginString)
-		quote.SetSenderCompID(e.acceptorObject.SenderCompID)
+		quote.SetSenderCompID(sessionId.SenderCompID)
 		quote.SetTargetCompID(sessionId.TargetCompID)
 
 		tempErr := quickfix.SendToAliveSession(quote, sessionId)
@@ -310,10 +334,13 @@ func main() {
 		fmt.Println("Error BeginString cfg,", err)
 		return
 	}
+
 	app.acceptorObject.SenderCompID, err = appSettings.GlobalSettings().Setting("SenderCompID")
 	if err != nil {
-		fmt.Println("Error SenderCompID cfg,", err)
-		return
+		if hasGlobal, _ := appSettings.GlobalSettings().BoolSetting("DynamicSessions"); !hasGlobal {
+			fmt.Println("Error SenderCompID cfg,", err)
+			return
+		}
 	}
 
 	acceptor, err := quickfix.NewAcceptor(app, quickfix.NewMemoryStoreFactory(), appSettings, logFactory)
@@ -333,7 +360,8 @@ func main() {
 		time.Sleep(5 * time.Second)
 		for app.acceptorObject.Acceptor != nil {
 			// app.OnFIX44NewQuoteAll()
-			app.OnFIX44NewQuoteAll2()
+			app.OnFIX44NewQuoteAll1()
+			// app.OnFIX44NewQuoteAll2()
 			// app.OnFIX44NewQuoteAll3()
 			time.Sleep(20 * time.Second)
 		}
