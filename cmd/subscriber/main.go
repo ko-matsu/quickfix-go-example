@@ -226,7 +226,7 @@ func (e Subscriber) FromAdmin(msg *quickfix.Message, sessionID quickfix.SessionI
 	if err != nil {
 		fmt.Printf("Receive Invalid adminMsg: %s\n", msg.String())
 	} else if msgType == "A" {
-		fmt.Printf("Recv Logon: %s\n", msg.String())
+		fmt.Printf("Recv Logon: %s\n", strings.Replace(msg.String(), "\u0001", "|", -1))
 	} else if msgType == "5" {
 		fmt.Printf("Recv Logout: %s\n", msg.String())
 	} else if msgType == "3" {
@@ -244,12 +244,11 @@ func (e Subscriber) ToAdmin(msg *quickfix.Message, sessionID quickfix.SessionID)
 	msgType, err := msg.MsgType()
 	if err != nil {
 		fmt.Printf("Receive Invalid adminMsg: %s\n", msg.String())
-	} else if !e.isDebug {
-		time.Sleep(time.Second * 10)
+	} else if e.isDebug {
 		// do nothing
 	} else if msgType == "A" {
 		fmt.Printf("Send Logon: %s\n", msg)
-		// time.Sleep(time.Second * 10)
+		time.Sleep(time.Second * 10)
 	} else if msgType == "5" {
 		fmt.Printf("Send Logout: %s\n", msg)
 	} else if msgType != "0" {
@@ -350,31 +349,30 @@ func main() {
 	defer func() {
 		initiator.Stop()
 		fmt.Printf("Called stop.\n")
-		err = initiator.WaitForAliveSessionFirstTimeout(time.Second * 5)
-		if err != nil {
-			fmt.Printf("Failed to wait: %s\n", err)
-		}
 	}()
 
+	sessId := initiator.GetSessionIDs()[0]
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, os.Interrupt, syscall.SIGTERM) // os.Kill
+	startTimer := time.NewTimer(time.Second * 5)
+	defer startTimer.Stop()
+
 	fmt.Printf("Wait1 start\n")
-	err = initiator.WaitForAliveSessionFirstTimeout(time.Second * 5)
-	if err != nil {
-		fmt.Printf("Failed to wait: %s\n", err)
-		select {
-		case <-interrupt:
-			return
-		default:
-		}
+	select {
+	case <-quickfix.WaitForLogon(sessId):
+		fmt.Printf("Wait1 finish\n")
+	case <-startTimer.C:
+		fmt.Printf("Wait1 timeout\n")
+	case <-interrupt:
+		return
 	}
-	fmt.Printf("Wait1 finish\n")
 	fmt.Printf("Wait start\n")
-	err = initiator.WaitForAliveSessionFirst()
-	if err != nil {
-		fmt.Printf("Failed to wait: %s\n", err)
+	select {
+	case <-quickfix.WaitForLogon(sessId):
+		fmt.Printf("Wait finish\n")
+	case <-interrupt:
+		return
 	}
-	fmt.Printf("Wait finish\n")
 	err = app.queryQuoteRequestOrder("CG001", "BTC/JPY", "BTC-1-00000000")
 	if err != nil {
 		fmt.Printf("Failed to queryQuoteRequestOrder: %s\n", err)
