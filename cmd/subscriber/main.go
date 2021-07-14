@@ -5,9 +5,11 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"os/signal"
 	"path"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	quickfix "github.com/cryptogarageinc/quickfix-go"
@@ -243,9 +245,11 @@ func (e Subscriber) ToAdmin(msg *quickfix.Message, sessionID quickfix.SessionID)
 	if err != nil {
 		fmt.Printf("Receive Invalid adminMsg: %s\n", msg.String())
 	} else if !e.isDebug {
+		time.Sleep(time.Second * 10)
 		// do nothing
 	} else if msgType == "A" {
 		fmt.Printf("Send Logon: %s\n", msg)
+		// time.Sleep(time.Second * 10)
 	} else if msgType == "5" {
 		fmt.Printf("Send Logout: %s\n", msg)
 	} else if msgType != "0" {
@@ -343,6 +347,38 @@ func main() {
 		fmt.Printf("Failed to Start: %s\n", err)
 		return
 	}
+	defer func() {
+		initiator.Stop()
+		fmt.Printf("Called stop.\n")
+		err = initiator.WaitForAliveSessionFirstTimeout(time.Second * 5)
+		if err != nil {
+			fmt.Printf("Failed to wait: %s\n", err)
+		}
+	}()
+
+	interrupt := make(chan os.Signal, 1)
+	signal.Notify(interrupt, os.Interrupt, syscall.SIGTERM) // os.Kill
+	fmt.Printf("Wait1 start\n")
+	err = initiator.WaitForAliveSessionFirstTimeout(time.Second * 5)
+	if err != nil {
+		fmt.Printf("Failed to wait: %s\n", err)
+		select {
+		case <-interrupt:
+			return
+		default:
+		}
+	}
+	fmt.Printf("Wait1 finish\n")
+	fmt.Printf("Wait start\n")
+	err = initiator.WaitForAliveSessionFirst()
+	if err != nil {
+		fmt.Printf("Failed to wait: %s\n", err)
+	}
+	fmt.Printf("Wait finish\n")
+	err = app.queryQuoteRequestOrder("CG001", "BTC/JPY", "BTC-1-00000000")
+	if err != nil {
+		fmt.Printf("Failed to queryQuoteRequestOrder: %s\n", err)
+	}
 
 	quoteList := GetQuoteRequestDatas(appSettings)
 
@@ -380,7 +416,10 @@ Loop:
 		if err != nil {
 			fmt.Printf("%v\n", err)
 		}
+		select {
+		case <-interrupt:
+			return
+		default:
+		}
 	}
-
-	initiator.Stop()
 }
