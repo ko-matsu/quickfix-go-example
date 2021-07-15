@@ -335,9 +335,10 @@ func main() {
 		return
 	}
 
+	hasGlobal, _ := appSettings.GlobalSettings().BoolSetting("DynamicSessions")
 	app.acceptorObject.SenderCompID, err = appSettings.GlobalSettings().Setting("SenderCompID")
 	if err != nil {
-		if hasGlobal, _ := appSettings.GlobalSettings().BoolSetting("DynamicSessions"); !hasGlobal {
+		if !hasGlobal {
 			fmt.Println("Error SenderCompID cfg,", err)
 			return
 		}
@@ -354,7 +355,34 @@ func main() {
 		fmt.Printf("Unable to start Acceptor: %s\n", err)
 		return
 	}
+	defer func() {
+		acceptor.Stop()
+		fmt.Println("Acceptor stop finish.")
+	}()
 	fmt.Println("Acceptor start.")
+
+	go func() {
+		ids := acceptor.GetSessionIDs()
+		if len(ids) == 0 || hasGlobal {
+			return
+		}
+		for _, id := range ids {
+			go func(sessionId quickfix.SessionID) {
+				interrupt := make(chan os.Signal, 1)
+				signal.Notify(interrupt, os.Interrupt, syscall.SIGTERM) // os.Kill
+				for {
+					fmt.Printf("## Wait start: %s\n", sessionId.String())
+					select {
+					case <-quickfix.WaitForLogon(sessionId):
+						fmt.Printf("## Wait finish. Logon: %s\n", sessionId.String())
+					case <-interrupt:
+						fmt.Printf("## Wait interrupt: %s\n", sessionId.String())
+						return
+					}
+				}
+			}(id)
+		}
+	}()
 
 	go func() {
 		time.Sleep(5 * time.Second)
@@ -372,6 +400,5 @@ func main() {
 	<-interrupt
 
 	app.acceptorObject.Acceptor = nil
-	acceptor.Stop()
 	fmt.Println("Acceptor stop.")
 }

@@ -36,6 +36,18 @@ exec_win: build_win
 	timeout 1
 	CMD /C start CMD /K .\bin\subscriber.exe .\config\subscriber.cfg
 
+exec_win_cli: build_win
+	CMD /C start CMD /K .\bin\subscriber.exe .\config\subscriber.cfg
+
+multi_exec_win: build_win
+	CMD /C start CMD /K .\bin\publisher.exe .\config\publisher.cfg
+	timeout 1
+	CMD /C start CMD /K .\bin\subscriber.exe .\config\subscriber_multi1.cfg
+	timeout 1
+	CMD /C start CMD /K .\bin\subscriber.exe .\config\subscriber_multi2.cfg
+	timeout 1
+	CMD /C start CMD /K .\bin\subscriber.exe .\config\subscriber_multi3.cfg
+
 dynamic_exec_win: build_win
 	CMD /C start CMD /K .\bin\publisher.exe .\config\publisher_dynamic.cfg
 	timeout 1

@@ -21,6 +21,12 @@ github.com/cryptogarageinc/quickfix-go v1.0.3-rc.4 h1:cLsMRwCOlQY/YxNzTZvm3eG1kx
 github.com/cryptogarageinc/quickfix-go v1.0.3-rc.4/go.mod h1:u7VATNsUIhfGn7PXMG+M187Q25gIIEe3YS3RgOS5SKc=
 github.com/cryptogarageinc/quickfix-go v1.0.3-rc.5 h1:/Y/6NqQn8x/wdA/SPLAtcKqrCfr99fZjk5e2qVrDJRg=
 github.com/cryptogarageinc/quickfix-go v1.0.3-rc.5/go.mod h1:u7VATNsUIhfGn7PXMG+M187Q25gIIEe3YS3RgOS5SKc=
+github.com/cryptogarageinc/quickfix-go v1.0.3-rc.6 h1:XXBDWxshGDcPnhCT7LVxuqpjpoSljoc61JV3QhMSaOw=
+github.com/cryptogarageinc/quickfix-go v1.0.3-rc.6/go.mod h1:u7VATNsUIhfGn7PXMG+M187Q25gIIEe3YS3RgOS5SKc=
+github.com/cryptogarageinc/quickfix-go v1.0.3-rc.7 h1:hd4IheMQT0gbdvM0ZjDFF0Daixn3zmKY+JPZMgS77x0=
+github.com/cryptogarageinc/quickfix-go v1.0.3-rc.7/go.mod h1:u7VATNsUIhfGn7PXMG+M187Q25gIIEe3YS3RgOS5SKc=
+github.com/cryptogarageinc/quickfix-go v1.0.3 h1:sIl3/L6bwK5zE8OLF2dFrG0HqRvcrDriAOZVcaCy/7g=
+github.com/cryptogarageinc/quickfix-go v1.0.3/go.mod h1:u7VATNsUIhfGn7PXMG+M187Q25gIIEe3YS3RgOS5SKc=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=

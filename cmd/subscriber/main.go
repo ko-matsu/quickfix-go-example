@@ -244,7 +244,7 @@ func (e Subscriber) ToAdmin(msg *quickfix.Message, sessionID quickfix.SessionID)
 	msgType, err := msg.MsgType()
 	if err != nil {
 		fmt.Printf("Receive Invalid adminMsg: %s\n", msg.String())
-	} else if e.isDebug {
+	} else if !e.isDebug {
 		// do nothing
 	} else if msgType == "A" {
 		fmt.Printf("Send Logon: %s\n", msg)
@@ -357,14 +357,16 @@ func main() {
 	startTimer := time.NewTimer(time.Second * 5)
 	defer startTimer.Stop()
 
-	fmt.Printf("Wait1 start\n")
-	select {
-	case <-quickfix.WaitForLogon(sessId):
-		fmt.Printf("Wait1 finish\n")
-	case <-startTimer.C:
-		fmt.Printf("Wait1 timeout\n")
-	case <-interrupt:
-		return
+	if isDebug {
+		fmt.Printf("Wait1 start\n")
+		select {
+		case <-quickfix.WaitForLogon(sessId):
+			fmt.Printf("Wait1 finish\n")
+		case <-startTimer.C:
+			fmt.Printf("Wait1 timeout\n")
+		case <-interrupt:
+			return
+		}
 	}
 	fmt.Printf("Wait start\n")
 	select {
@@ -376,6 +378,7 @@ func main() {
 	err = app.queryQuoteRequestOrder("CG001", "BTC/JPY", "BTC-1-00000000")
 	if err != nil {
 		fmt.Printf("Failed to queryQuoteRequestOrder: %s\n", err)
+		return
 	}
 
 	quoteList := GetQuoteRequestDatas(appSettings)
