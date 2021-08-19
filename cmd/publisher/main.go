@@ -332,12 +332,55 @@ func (e *publisher) OnFIX44NewQuoteAllByError() (err quickfix.MessageRejectError
 	return
 }
 
+func (e *publisher) StoreQuoteMessageAll() (err quickfix.MessageRejectError) {
+	sessionIds := []quickfix.SessionID{
+		{
+			BeginString:  "FIX.4.4",
+			TargetCompID: "INIT1",
+			SenderCompID: "ACCEPTOR",
+		},
+		{
+			BeginString:  "FIX.4.4",
+			TargetCompID: "INIT2",
+			SenderCompID: "ACCEPTOR",
+		},
+	}
+	for _, sessionId := range sessionIds {
+		quote := fix44quote.New(field.NewQuoteID("StoreTEST"))
+		quote.SetQuoteReqID("test")
+		quote.SetCurrency("BTC")
+		quote.SetTransactTime(time.Now())
+		quote.SetSymbol("symbol")
+		quote.SetBidPx(decimal.New(120, 0), 2)
+		quote.SetOfferPx(decimal.New(100, 0), 2)
+		quote.SetBidSize(decimal.New(120, 0), 2)
+		quote.SetOfferSize(decimal.New(100, 0), 2)
+
+		quote.SetBeginString(e.acceptorObject.BeginString)
+		quote.SetSenderCompID(sessionId.SenderCompID)
+		quote.SetTargetCompID(sessionId.TargetCompID)
+
+		tempErr := quickfix.StoreMessageToSession(quote, sessionId)
+		if tempErr != nil {
+			fmt.Printf("Error(%s) StoreMessageToSession,%v\n", sessionId.TargetCompID, tempErr)
+		}
+	}
+	return
+}
+
 func main() {
 	flag.Parse()
 
 	cfgFileName := path.Join("config", "executor.cfg")
 	if flag.NArg() > 0 {
 		cfgFileName = flag.Arg(0)
+	}
+	storeMessageFlag := false
+	if flag.NArg() > 1 {
+		msg := flag.Arg(1)
+		if msg == "StoreMessage" {
+			storeMessageFlag = true
+		}
 	}
 
 	cfg, err := os.Open(cfgFileName)
@@ -424,6 +467,9 @@ func main() {
 
 	go func() {
 		time.Sleep(5 * time.Second)
+		if storeMessageFlag {
+			app.StoreQuoteMessageAll()
+		}
 		for app.acceptorObject.Acceptor != nil {
 			// app.OnFIX44NewQuoteAll()
 			//app.OnFIX44NewQuoteAll1()

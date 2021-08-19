@@ -29,6 +29,8 @@ github.com/cryptogarageinc/quickfix-go v1.0.3 h1:sIl3/L6bwK5zE8OLF2dFrG0HqRvcrDr
 github.com/cryptogarageinc/quickfix-go v1.0.3/go.mod h1:u7VATNsUIhfGn7PXMG+M187Q25gIIEe3YS3RgOS5SKc=
 github.com/cryptogarageinc/quickfix-go v1.0.8-rc.0 h1:1y+Q4J9BPwRhbLvXL7TL1ncwrkC3ky3eci7pk7bDqJA=
 github.com/cryptogarageinc/quickfix-go v1.0.8-rc.0/go.mod h1:VLerjK07Q7DtoCi4lEIDsn/LOqJ3iEVghgvXD9dGG2c=
+github.com/cryptogarageinc/quickfix-go v1.0.9-rc.0 h1:lcyeWNbbXmh7PCennCKoly+ljuW1kyqtpd0Xm+YOkmo=
+github.com/cryptogarageinc/quickfix-go v1.0.9-rc.0/go.mod h1:VLerjK07Q7DtoCi4lEIDsn/LOqJ3iEVghgvXD9dGG2c=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
