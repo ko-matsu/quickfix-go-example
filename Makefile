@@ -66,3 +66,14 @@ dynamic_cli_win:
 
 dynamic_acceptor_win: build_win
 	CMD /C start CMD /K .\bin\publisher.exe .\config\publisher_dynamic.cfg
+
+dynamic_store_win: build_win
+	CMD /C start CMD /K .\bin\publisher.exe .\config\publisher_dynamic_store.cfg
+	timeout 1
+	CMD /C start CMD /K .\bin\subscriber.exe .\config\subscriber_dynamic_store1.cfg
+	timeout 1
+	CMD /C start CMD /K .\bin\subscriber.exe .\config\subscriber_dynamic_store2.cfg
+
+dynamic_store_cli_win:
+	CMD /C start CMD /K .\bin\subscriber.exe .\config\subscriber_dynamic_store1.cfg
+

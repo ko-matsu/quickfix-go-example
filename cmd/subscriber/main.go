@@ -16,6 +16,7 @@ import (
 	"github.com/cryptogarageinc/quickfix-go/field"
 	fix44quote "github.com/cryptogarageinc/quickfix-go/fix44/quote"
 	fix44qr "github.com/cryptogarageinc/quickfix-go/fix44/quoterequest"
+	fix44rs "github.com/cryptogarageinc/quickfix-go/fix44/resendrequest"
 	"github.com/cryptogarageinc/quickfix-go/tag"
 	// "github.com/shopspring/decimal"
 )
@@ -48,6 +49,14 @@ func (m *SubscribeMessage) newQuoteRequestByFix44(quoteReqID, symbol, account st
 	order.SetNoRelatedSym(group)
 	// order.Set(field.NewNoRelatedSym(1))
 
+	order.Header.SetTargetCompID(m.sessionID.TargetCompID)
+	order.Header.SetSenderCompID(m.sessionID.SenderCompID)
+	return order.ToMessage()
+}
+
+// newResendRequest returns ResendRequest message.
+func (m *SubscribeMessage) newResendRequest(begin, end int) *quickfix.Message {
+	order := fix44rs.New(field.NewBeginSeqNo(end), field.NewEndSeqNo(begin))
 	order.Header.SetTargetCompID(m.sessionID.TargetCompID)
 	order.Header.SetSenderCompID(m.sessionID.SenderCompID)
 	return order.ToMessage()
@@ -231,6 +240,8 @@ func (e Subscriber) FromAdmin(msg *quickfix.Message, sessionID quickfix.SessionI
 		fmt.Printf("Recv Logout: %s\n", msg.String())
 	} else if msgType == "3" {
 		fmt.Printf("Recv Reject: %s\n", msg.String())
+	} else if msgType == "4" {
+		fmt.Printf("Recv SequenceReset: %s\n", msg)
 	} else if msgType != "0" {
 		fmt.Printf("Recv: %s\n", msg.String())
 	} else if e.isDebug {
@@ -251,6 +262,8 @@ func (e Subscriber) ToAdmin(msg *quickfix.Message, sessionID quickfix.SessionID)
 		time.Sleep(time.Second * 10)
 	} else if msgType == "5" {
 		fmt.Printf("Send Logout: %s\n", msg)
+	} else if msgType == "2" {
+		fmt.Printf("Send ResendRequest: %s\n", msg)
 	} else if msgType != "0" {
 		fmt.Printf("Send: %s\n", msg)
 	}
@@ -276,6 +289,8 @@ func (e Subscriber) FromApp(msg *quickfix.Message, sessionID quickfix.SessionID)
 		}
 	} else if msgType == "j" {
 		fmt.Printf("BusinessMessageReject: %s\n", msg.String())
+	} else if msgType == "4" {
+		fmt.Printf("Recv sequenceReset: %s\n", msg)
 	} else {
 		fmt.Printf("Receive: %s\n", msg.String())
 	}
@@ -291,6 +306,18 @@ func (e Subscriber) queryQuoteRequestOrder(quoteReqID, symbol, account string) (
 	}()
 
 	order := e.data.newQuoteRequestByFix44(quoteReqID, symbol, account)
+	return e.data.initiator.SendToAliveSession(order, e.data.sessionID)
+}
+
+// queryQuoteRequestOrder This function send QuoteRequest message.
+func (e Subscriber) resendRequest(begin, end int) (err error) {
+	defer func() {
+		if e := recover(); e != nil {
+			err = e.(error)
+		}
+	}()
+
+	order := e.data.newResendRequest(begin, end)
 	return e.data.initiator.SendToAliveSession(order, e.data.sessionID)
 }
 
@@ -317,6 +344,12 @@ func main() {
 	if appSettings.GlobalSettings().HasSetting("Debug") {
 		isDebug, _ = appSettings.GlobalSettings().BoolSetting("Debug")
 	}
+	beginResendIndexOnBoot := -1
+	endResendIndexOnBoot := -1
+	if appSettings.GlobalSettings().HasSetting("BeginResendIndexOnBoot") && appSettings.GlobalSettings().HasSetting("EndResendIndexOnBoot") {
+		beginResendIndexOnBoot, _ = appSettings.GlobalSettings().IntSetting("BeginResendIndexOnBoot")
+		endResendIndexOnBoot, _ = appSettings.GlobalSettings().IntSetting("EndResendIndexOnBoot")
+	}
 
 	appData := SubscribeMessage{setting: appSettings}
 	logger := NewPriceLogger(appSettings)
@@ -326,8 +359,11 @@ func main() {
 		fmt.Println("Error creating file log factory,", err)
 		return
 	}
-
-	initiator, err := quickfix.NewInitiator(app, quickfix.NewMemoryStoreFactory(), appSettings, fileLogFactory)
+	storeFactory := quickfix.NewMemoryStoreFactory()
+	if appSettings.GlobalSettings().HasSetting("FileStorePath") {
+		storeFactory = quickfix.NewFileStoreFactory(appSettings)
+	}
+	initiator, err := quickfix.NewInitiator(app, storeFactory, appSettings, fileLogFactory)
 	if err != nil {
 		fmt.Printf("Unable to create Initiator: %s\n", err)
 		return
@@ -372,8 +408,16 @@ func main() {
 	select {
 	case <-quickfix.WaitForLogon(sessId):
 		fmt.Printf("Wait finish\n")
+		time.Sleep(1 * time.Second)
 	case <-interrupt:
 		return
+	}
+	if beginResendIndexOnBoot >= 0 && endResendIndexOnBoot >= 0 {
+		err = app.resendRequest(beginResendIndexOnBoot, endResendIndexOnBoot)
+		if err != nil {
+			fmt.Printf("Failed to resendRequest: %s\n", err)
+			return
+		}
 	}
 	err = app.queryQuoteRequestOrder("CG001", "BTC/JPY", "BTC-1-00000000")
 	if err != nil {

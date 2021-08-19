@@ -35,12 +35,14 @@ type publisher struct {
 	execID  int
 	*quickfix.MessageRouter
 	*acceptorObject
+	errorSessionMap map[quickfix.SessionID]int
 }
 
 func newPublisher() *publisher {
 	p := &publisher{
-		MessageRouter:  quickfix.NewMessageRouter(),
-		acceptorObject: &acceptorObject{},
+		MessageRouter:   quickfix.NewMessageRouter(),
+		acceptorObject:  &acceptorObject{},
+		errorSessionMap: make(map[quickfix.SessionID]int),
 	}
 	p.AddRoute(fix44nos.Route(p.OnFIX44NewOrderSingle))
 	p.AddRoute(fix44qr.Route(p.OnFIX44NewQuoteRequest))
@@ -298,6 +300,38 @@ func (e *publisher) OnFIX44NewQuoteAll3() (err quickfix.MessageRejectError) {
 	return
 }
 
+func (e *publisher) OnFIX44NewQuoteAllByError() (err quickfix.MessageRejectError) {
+	list := quickfix.GetAliveSessionIDs()
+	for _, sessionId := range list {
+		e.errorSessionMap[sessionId] = 0
+	}
+	for sessionId, errorCount := range e.errorSessionMap {
+		if errorCount >= 3 {
+			continue
+		}
+		quote := fix44quote.New(field.NewQuoteID("TEST"))
+		quote.SetQuoteReqID("test")
+		quote.SetCurrency("BTC")
+		quote.SetTransactTime(time.Now())
+		quote.SetSymbol("symbol")
+		quote.SetBidPx(decimal.New(120, 0), 2)
+		quote.SetOfferPx(decimal.New(100, 0), 2)
+		quote.SetBidSize(decimal.New(120, 0), 2)
+		quote.SetOfferSize(decimal.New(100, 0), 2)
+
+		quote.SetBeginString(e.acceptorObject.BeginString)
+		quote.SetSenderCompID(sessionId.SenderCompID)
+		quote.SetTargetCompID(sessionId.TargetCompID)
+
+		tempErr := quickfix.SendToSession(quote, sessionId)
+		if tempErr != nil {
+			fmt.Printf("Error(%s,%d) SendToAliveSession,%v\n", sessionId.TargetCompID, errorCount+1, tempErr)
+			e.errorSessionMap[sessionId] = errorCount + 1
+		}
+	}
+	return
+}
+
 func main() {
 	flag.Parse()
 
@@ -344,7 +378,11 @@ func main() {
 		}
 	}
 
-	acceptor, err := quickfix.NewAcceptor(app, quickfix.NewMemoryStoreFactory(), appSettings, logFactory)
+	storeFactory := quickfix.NewMemoryStoreFactory()
+	if appSettings.GlobalSettings().HasSetting("FileStorePath") {
+		storeFactory = quickfix.NewFileStoreFactory(appSettings)
+	}
+	acceptor, err := quickfix.NewAcceptor(app, storeFactory, appSettings, logFactory)
 	if err != nil {
 		fmt.Printf("Unable to create Acceptor: %s\n", err)
 		return
@@ -388,9 +426,10 @@ func main() {
 		time.Sleep(5 * time.Second)
 		for app.acceptorObject.Acceptor != nil {
 			// app.OnFIX44NewQuoteAll()
-			app.OnFIX44NewQuoteAll1()
+			//app.OnFIX44NewQuoteAll1()
 			// app.OnFIX44NewQuoteAll2()
 			// app.OnFIX44NewQuoteAll3()
+			app.OnFIX44NewQuoteAllByError()
 			time.Sleep(20 * time.Second)
 		}
 	}()
