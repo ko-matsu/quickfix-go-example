@@ -3,7 +3,10 @@ package main
 import (
 	"flag"
 	"fmt"
+	"os"
+	"os/signal"
 	"path"
+	"strconv"
 	"syscall"
 	"time"
 
@@ -18,9 +21,7 @@ import (
 	fix44quote "github.com/cryptogarageinc/quickfix-go/fix44/quote"
 	fix44qr "github.com/cryptogarageinc/quickfix-go/fix44/quoterequest"
 
-	"os"
-	"os/signal"
-	"strconv"
+	_ "github.com/mattn/go-sqlite3"
 )
 
 type acceptorObject struct {
@@ -325,7 +326,7 @@ func (e *publisher) OnFIX44NewQuoteAllByError() (err quickfix.MessageRejectError
 
 		tempErr := quickfix.SendToSession(quote, sessionId)
 		if tempErr != nil {
-			fmt.Printf("Error(%s,%d) SendToAliveSession,%v\n", sessionId.TargetCompID, errorCount+1, tempErr)
+			fmt.Printf("Error(%s,%d) SendToSession,%v\n", sessionId.TargetCompID, errorCount+1, tempErr)
 			e.errorSessionMap[sessionId] = errorCount + 1
 		}
 	}
@@ -424,6 +425,8 @@ func main() {
 	storeFactory := quickfix.NewMemoryStoreFactory()
 	if appSettings.GlobalSettings().HasSetting("FileStorePath") {
 		storeFactory = quickfix.NewFileStoreFactory(appSettings)
+	} else if appSettings.GlobalSettings().HasSetting("SQLStoreDriver") {
+		storeFactory = quickfix.NewSQLTxStoreFactory(appSettings)
 	}
 	acceptor, err := quickfix.NewAcceptor(app, storeFactory, appSettings, logFactory)
 	if err != nil {

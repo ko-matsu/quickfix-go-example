@@ -18,12 +18,16 @@ build_win: clean_win
 	go build -v -o ./bin/publisher.exe ./cmd/publisher
 	go build -v -o ./bin/subscriber.exe ./cmd/subscriber
 
+gooseup:
+	goose -dir ./sql/migrations sqlite3 ./sql/pub.db up
+
 clean:
-	rm -rf ./bin ./tmp
+	rm -rf ./bin ./tmp ./sql/pub.db
 
 clean_win:
 	if exist bin ( rmdir /S /Q bin )
 	if exist tmp ( rmdir /S /Q tmp )
+	if exist ./sql/pub.db ( del /F .\sql\pub.db )
 
 exec_pub:
 	./bin/publisher ./config/publisher.cfg
@@ -77,8 +81,13 @@ dynamic_store_win: build_win
 dynamic_store_cli_win:
 	CMD /C start CMD /K .\bin\subscriber.exe .\config\subscriber_dynamic_store1.cfg
 
+dynamic_store_cli2_win:
+	CMD /C start CMD /K .\bin\subscriber.exe .\config\subscriber_dynamic_store1.cfg
+	timeout 1
+	CMD /C start CMD /K .\bin\subscriber.exe .\config\subscriber_dynamic_store2.cfg
+
 dynamic_store_win_store_msg:
-	CMD /C start CMD /K .\bin\publisher.exe .\config\publisher_dynamic_store.cfg StoreMessage
+	CMD /C start CMD /K .\bin\publisher.exe .\config\publisher_dynamic_sqlstore.cfg StoreMessage
 	timeout 1
 	CMD /C start CMD /K .\bin\subscriber.exe .\config\subscriber_dynamic_store1.cfg
 	timeout 1
