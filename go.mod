@@ -4,7 +4,7 @@ go 1.15
 
 require (
 	github.com/ClickHouse/clickhouse-go v1.4.5 // indirect
-	github.com/cryptogarageinc/quickfix-go v1.0.9-rc.1
+	github.com/cryptogarageinc/quickfix-go v1.0.12
 	github.com/denisenkom/go-mssqldb v0.10.0 // indirect
 	github.com/go-sql-driver/mysql v1.6.0 // indirect
 	github.com/lib/pq v1.10.2 // indirect

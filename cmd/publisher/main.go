@@ -426,7 +426,7 @@ func main() {
 	if appSettings.GlobalSettings().HasSetting("FileStorePath") {
 		storeFactory = quickfix.NewFileStoreFactory(appSettings)
 	} else if appSettings.GlobalSettings().HasSetting("SQLStoreDriver") {
-		storeFactory = quickfix.NewSQLTxStoreFactory(appSettings)
+		storeFactory = quickfix.NewSQLStoreFactory(appSettings)
 	}
 	acceptor, err := quickfix.NewAcceptor(app, storeFactory, appSettings, logFactory)
 	if err != nil {
