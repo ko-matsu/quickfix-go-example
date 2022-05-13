@@ -245,6 +245,8 @@ func (e Subscriber) FromAdmin(msg *quickfix.Message, sessionID quickfix.SessionI
 	} else if msgType != "0" {
 		fmt.Printf("Recv: %s\n", msg.String())
 	} else if e.isDebug {
+		fmt.Println("[heartbeat] 60 sleep start.")
+		time.Sleep(120 * time.Second)
 		fmt.Println("Recv heartbeat.")
 	}
 	return
@@ -281,6 +283,8 @@ func (e Subscriber) FromApp(msg *quickfix.Message, sessionID quickfix.SessionID)
 	if err != nil {
 		fmt.Printf("Receive Invalid msg: %s\n", msg.String())
 	} else if msgType == "S" {
+		// fmt.Println("[Quote] 120 sleep start.")
+		// time.Sleep(120 * time.Second)
 		quoteData := fix44quote.FromMessage(msg)
 		fmt.Printf("Quote: %s, size=%d\n", msg.String(), quoteData.Body.Len())
 		tmpErr := e.logger.WriteQuoteMessage(&quoteData)
@@ -321,7 +325,7 @@ func (e Subscriber) resendRequest(begin, end int) (err error) {
 	return e.data.initiator.SendToAliveSession(order, e.data.sessionID)
 }
 
-func main() {
+func main() { // タスクを定義
 	flag.Parse()
 
 	cfgFileName := path.Join("config", "subscriber.cfg")
@@ -383,6 +387,7 @@ func main() {
 		return
 	}
 	defer func() {
+		fmt.Printf("Call stop.\n")
 		initiator.Stop()
 		fmt.Printf("Called stop.\n")
 	}()
@@ -463,8 +468,10 @@ Loop:
 		}
 		select {
 		case <-interrupt:
+			fmt.Printf("recv interrupt\n")
 			return
 		default:
 		}
 	}
+	fmt.Printf("end\n")
 }

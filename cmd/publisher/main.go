@@ -478,7 +478,7 @@ func main() {
 			//app.OnFIX44NewQuoteAll1()
 			// app.OnFIX44NewQuoteAll2()
 			// app.OnFIX44NewQuoteAll3()
-			app.OnFIX44NewQuoteAllByError()
+			//app.OnFIX44NewQuoteAllByError()
 			time.Sleep(20 * time.Second)
 		}
 	}()
