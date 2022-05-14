@@ -3,7 +3,8 @@ module github.com/cryptogarageinc/quickfix-go-examples
 go 1.18
 
 require (
-	github.com/cryptogarageinc/quickfix-go v1.0.14-rc.2
+	github.com/cryptogarageinc/quickfix-go v1.0.14-rc.3
+	github.com/google/gops v0.3.23
 	github.com/mattn/go-sqlite3 v1.14.10
 	github.com/shopspring/decimal v1.3.1
 )
@@ -20,4 +21,5 @@ require (
 	go.uber.org/atomic v1.9.0 // indirect
 	golang.org/x/crypto v0.0.0-20210817164053-32db794688a5 // indirect
 	golang.org/x/net v0.0.0-20210614182718-04defd469f4e // indirect
+	golang.org/x/sys v0.0.0-20210902050250-f475640dd07b // indirect
 )

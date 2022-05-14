@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"flag"
 	"fmt"
+	"log"
 	"os"
 	"os/signal"
 	"path"
@@ -19,6 +20,8 @@ import (
 	fix44rs "github.com/cryptogarageinc/quickfix-go/fix44/resendrequest"
 	"github.com/cryptogarageinc/quickfix-go/tag"
 	// "github.com/shopspring/decimal"
+
+	"github.com/google/gops/agent"
 )
 
 type SubscribeMessage struct {
@@ -327,6 +330,9 @@ func (e Subscriber) resendRequest(begin, end int) (err error) {
 
 func main() { // タスクを定義
 	flag.Parse()
+	if err := agent.Listen(agent.Options{}); err != nil {
+		log.Fatal(err)
+	}
 
 	cfgFileName := path.Join("config", "subscriber.cfg")
 	if flag.NArg() > 0 {
